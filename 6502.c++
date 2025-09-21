@@ -4,6 +4,13 @@
 #include <memory>
 #include <windows.h>
 #include <iostream>
+#include <string>
+#include <sstream>
+#include <map>
+#include <algorithm>
+#include <fstream>
+#include <cstdint>
+
 
 struct CPU {
 
@@ -31,8 +38,8 @@ struct CPU {
     uint8_t Status;
     enum FLAGS { C=0, Z=1, I=2, D=3, B=4, U=5, V=6, N=7 };
     uint8_t memory[0x10000];
-    uint8_t fetched;
-    uint8_t addres;
+    uint16_t fetched;
+    uint16_t addres;
     Instruction instrutionMap[0xFF];
 
     bool getFlag(FLAGS f) { return (Status >> f) & 1; }
@@ -47,6 +54,7 @@ struct CPU {
             Instruction ins = instrutionMap[opcode];
             (this->*ins.addrmode)();
             (this->*ins.operate)();
+            //printf("%s; fetched: %d, addres: %d\n", ins.name, fetched, addres);
             Sleep(timePerCycle_ms * ins.cycles);
             if (PrintAllowed and memory[PrintInvokeAddres]) {
                 memory[PrintInvokeAddres] = 0;
@@ -64,8 +72,8 @@ struct CPU {
     uint8_t ABS() { 
         uint8_t _1 = memory[PC++];
         uint8_t _2 = memory[PC++];
-        uint8_t _3 = _2 << 8;
-        uint8_t _4 = _1 | _3;
+        uint16_t _3 = _2 << 8;
+        uint16_t _4 = _1 | _3;
         addres = _4;
         fetched = memory[addres]; 
         return 0; 
@@ -144,7 +152,13 @@ struct CPU {
         } 
         return 0; 
     }
-    uint8_t JSR() { PC--; push((PC>>8)&0xFF); push(PC&0xFF); PC = memory[PC] | (memory[PC+1]<<8); return 0; }
+    uint8_t JSR() { 
+        PC--; 
+        push((PC>>8)&0xFF); 
+        push(PC&0xFF); 
+        PC = addres; 
+        return 0; 
+    }
     uint8_t RTS() { uint16_t lo = pop(); uint16_t hi = pop(); PC = (hi<<8)|lo; PC++; return 0; }
     uint8_t BCC() { int8_t offset = fetched; if(!getFlag(C)) { PC += offset; return 1; } return 0; }
     uint8_t BCS() { int8_t offset = fetched; if(getFlag(C)) { PC += offset; return 1; } return 0; }
@@ -449,27 +463,42 @@ struct CPU {
     }
 };
 
+std::vector<uint8_t> loadProgram(const std::string& filePath) {
+    std::ifstream file(filePath, std::ios::binary);
+    if (!file) {
+        throw std::runtime_error("Failed to open file: " + filePath);
+    }
+    std::vector<uint8_t> program((std::istreambuf_iterator<char>(file)),
+                                 std::istreambuf_iterator<char>());
+    return program;
+}
+
 /*
 FFFC:FFFD - reset vector
-
-Address  Instruction        Hex
-0003     LDA #<char H>      0xA9 0x48      ; Load 'H' into A
-0005     STA $0000          0x8D 0x00 0x00 ; Store A at 0x0000 (PrintCharAddres)
-0008     LDA #$01           0xA9 0x01      ; Load 1 into A
-000A     STA $0001          0x8D 0x01 0x00 ; Store A at 0x0001 (PrintAllowed)
-000D     JMP $0003          0x4C 0x0D 0x00 ; Loop to 000A (STA $0001 for keep on printing)
 */
 
 int main() {
     CPU cpu;
+    cpu.PrintCharAddres = 0xFFF8;
+    cpu.PrintInvokeAddres = 0XFFF9;
+
+    std::vector<uint8_t> program = {
+        0xA9, 0x48, 0x20, 0x3F, 0x00, 0xA9, 0x65, 0x20,
+        0x3F, 0x00, 0xA9, 0x6C, 0x20, 0x3F, 0x00, 0xA9,
+        0x6C, 0x20, 0x3F, 0x00, 0xA9, 0x6F, 0x20, 0x3F,
+        0x00, 0xA9, 0x2C, 0x20, 0x3F, 0x00, 0xA9, 0x20,
+        0x20, 0x3F, 0x00, 0xA9, 0x77, 0x20, 0x3F, 0x00,
+        0xA9, 0x6F, 0x20, 0x3F, 0x00, 0xA9, 0x72, 0x20,
+        0x3F, 0x00, 0xA9, 0x6C, 0x20, 0x3F, 0x00, 0xA9,
+        0x64, 0x20, 0x3F, 0x00, 0x4C, 0x48, 0x00, 0x8D,
+        0xF8, 0xFF, 0xA9, 0x01, 0x8D, 0xF9, 0xFF, 0x60,
+        0x4C, 0x48, 0x00
+    };
+
     cpu.memory[0xFFFD] = 0x00;
-    cpu.memory[0xFFFC] = 0x03; // start at 0x0003 due to 0000 and 0001 being used by the printing mecanism
-    
-    cpu.memory[0x0003] = 0xA9; cpu.memory[0x0004] = 0x48;
-    cpu.memory[0x0005] = 0x8D; cpu.memory[0x0006] = 0x00; cpu.memory[0x0007] = 0x00;
-    cpu.memory[0x0008] = 0xA9; cpu.memory[0x0009] = 0x01;
-    cpu.memory[0x000A] = 0x8D; cpu.memory[0x000B] = 0x01; cpu.memory[0x000C] = 0x00;
-    cpu.memory[0x000D] = 0x4C; cpu.memory[0x000E] = 0x0A; cpu.memory[0x000F] = 0x00;
+    cpu.memory[0xFFFC] = 0x00; 
+
+    std::copy(program.begin(), program.end(), cpu.memory);
 
     cpu.runFromReset();
 }
