@@ -50,7 +50,7 @@ struct CPU {
     bool INDPageBug = false;
     
     bool RTCompute = true;
-    float timePerCycle_ms = 5.5;
+    float timePerCycle_ms = 0.001;
 
     bool PrintAllowed = true;
     uint16_t PrintCharAddres = 0x0000;
