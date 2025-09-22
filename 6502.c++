@@ -539,7 +539,7 @@ int main() {
     cpu.PrintInvokeAddres  = 0XFFF9;
     cpu.InputCharAddres    = 0xFFF6;
 
-    std::vector<uint8_t> program = readFileRaw("E:\\vs code\\files\\6502cpp\\programs\\Hello, world\\memory.bin");
+    std::vector<uint8_t> program = readFileRaw("E:\\vs code\\files\\6502cpp\\programs\\Input test\\memory.bin");
 
 /*
     std::vector<uint8_t> program = {

@@ -6,12 +6,11 @@ def compile(code: str) -> bytearray:
     labels = {}
     reserved = {}
     vectors = {"RESET": 0xFFFC, "NMI": 0xFFFA, "IRQ": 0xFFFE}
-    free_mem_ptr = 0x0200  # first free memory for .res
+    free_mem_ptr = 0x0200
 
     pc = 0x0000
     current_org = 0x0000
 
-    # 6502 opcodes by mnemonic and addressing mode
     OPCODES = {
         "LDA": {"imm": 0xA9, "zp": 0xA5, "abs": 0xAD, "zpX": 0xB5, "absX": 0xBD, "absY": 0xB9, "indY": 0xB1},
         "STA": {"zp": 0x85, "abs": 0x8D, "zpX": 0x95, "absX": 0x9D, "absY": 0x99, "indY": 0x91},
@@ -36,10 +35,9 @@ def compile(code: str) -> bytearray:
         "CLC": {"impl": 0x18}, "SEC": {"impl": 0x38}
     }
 
-    # Parse operand recursively
     def parse_operand(operand: str) -> int | None:
         operand = operand.strip().upper()
-        if operand == "A":  # accumulator mode
+        if operand == "A":
             return None
         if operand.startswith("#"):
             if operand[1] == "$":
@@ -66,23 +64,16 @@ def compile(code: str) -> bytearray:
 
     # First pass: labels, reserves, org, vectors, pc sizing
     for line in lines:
-        line = line.strip()
-        line = line.split(";", 1)[0].strip()
-        if not line or line.startswith(";"): 
+        line = line.strip().split(";", 1)[0]
+        if not line or line.startswith(";"):
             continue
         if line.startswith(".org"):
-            val_str = line.split()[1].strip()
-            if val_str.startswith("$"):
-                current_org = int(val_str[1:], 16)
-            else:
-                current_org = int(val_str)
+            val_str = line.split()[1]
+            current_org = int(val_str[1:], 16) if val_str.startswith("$") else int(val_str)
             pc = current_org
         elif line.startswith(".res"):
             _, name, val = line.split()
-            if val.startswith("$"):
-                val = int(val[1:], 16)
-            else:
-                val = int(val)
+            val = int(val[1:], 16) if val.startswith("$") else int(val)
             reserved[name] = free_mem_ptr
             memory[free_mem_ptr] = val & 0xFF
             free_mem_ptr += 1
@@ -93,8 +84,7 @@ def compile(code: str) -> bytearray:
         elif line.startswith(".onIRQ"):
             labels["__VECTOR_IRQ__"] = line.split()[1]
         elif ":" in line:
-            lbl = line.split(":")[0].strip()
-            labels[lbl] = pc
+            labels[line.split(":")[0]] = pc
         else:
             parts = line.split(maxsplit=1)
             instr = parts[0].upper()
@@ -110,7 +100,11 @@ def compile(code: str) -> bytearray:
                 else:
                     try:
                         opval = parse_operand(operand)
-                        size = 2 if opval <= 0xFF else 3
+                        # enforce abs for JMP/JSR regardless of value
+                        if instr in ("JMP", "JSR"):
+                            size = 3
+                        else:
+                            size = 2 if opval <= 0xFF else 3
                     except Exception:
                         size = 3
             pc += size
@@ -118,15 +112,12 @@ def compile(code: str) -> bytearray:
     # Second pass: encode instructions
     pc = current_org
     for line in lines:
-        line = line.strip()
-        line = line.split(";", 1)[0].strip()
-        if not line or line.startswith(";") or line.startswith(".") or ":" in line: 
+        line = line.strip().split(";", 1)[0]
+        if not line or line.startswith(";") or line.startswith(".") or ":" in line:
             continue
         parts = line.split(maxsplit=1)
         instr = parts[0].upper()
         operand = parts[1] if len(parts) > 1 else None
-        if instr not in OPCODES:
-            raise ValueError(f"Unknown instruction: {instr}")
         mode = "impl"
         opval = None
         if operand:
@@ -137,6 +128,8 @@ def compile(code: str) -> bytearray:
                 mode = "imm"
             elif operand.startswith("(") and operand.endswith(")"):
                 mode = "ind"
+            elif instr in ("JMP", "JSR"):
+                mode = "abs"
             elif opval <= 0xFF:
                 mode = "zp"
             else:
@@ -169,7 +162,7 @@ def compile(code: str) -> bytearray:
         if lbl in labels:
             addr = labels[labels[lbl]]
             memory[vec_addr] = addr & 0x00FF
-            memory[vec_addr + 1] = (addr & 0xFF00) >> 8
+            memory[vec_addr + 1] = (addr >> 8) & 0xFF
 
     return memory
 

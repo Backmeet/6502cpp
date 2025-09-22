@@ -1,8 +1,7 @@
 JMP AWAIT
 
 ; attatched to NMI and emulators input mecanism
-START:
-    NOP ; identifier for were to keep the NMI vector value
+ON_CHAR:
     LDA $FFF6
     JSR PRINT_CHAR
     JMP AWAIT
@@ -16,3 +15,7 @@ PRINT_CHAR:
 
 AWAIT:
 JMP AWAIT
+
+.onStart AWAIT
+.onNMI ON_CHAR
+.onIRQ AWAIT
