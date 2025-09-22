@@ -1,0 +1,132 @@
+6502 ASSEMBLY LANGUAGE BEGINNER’S MANUAL
+
+Introduction
+
+The 6502 CPU is an 8-bit microprocessor. It has several registers: A is the accumulator, used for math and logic; X is the X index register, used for loops and offsets; Y is the Y index register, used for offsets; PC is the 16-bit program counter pointing to the next instruction; SP is the stack pointer, 8-bit, stack is located from 0x0100 to 0x01FF; P is the processor status, containing flags: Negative, Overflow, ignored, Break, Decimal, Interrupt disable, Zero, Carry. Memory is 16-bit addressable, from 0x0000 to 0xFFFF. The zero page is 0x0000 to 0x00FF and is faster to access. The stack is from 0x0100 to 0x01FF. Programs are usually loaded at $0600 or $8000. Hardware registers can be memory-mapped within this space.
+
+Addressing Modes
+
+Immediate: indicated by #. The operand is a constant value. Example: LDA #$10 loads 16 into the accumulator.
+
+Absolute: indicated by $. The operand is a full 16-bit memory address. Example: LDA $1234 loads the value at address $1234 into A.
+
+Absolute,X: indicated by $X. Adds the X register to the 16-bit address. Example: LDA $1000,X loads from $1000 + X.
+
+Absolute,Y: indicated by $Y. Adds the Y register to the 16-bit address. Example: LDA $1000,Y loads from $1000 + Y.
+
+Zero Page: indicated by a single byte 0x. Only uses addresses 0x00 to 0xFF. Example: LDA $12 loads from $0012.
+
+Zero Page,X: indicated by 0xX. Adds X to the zero-page address, wrapping around at 0xFF. Example: LDA $12,X.
+
+Zero Page,Y: indicated by 0xY. Adds Y to the zero-page address, wrapping around at 0xFF. Example: LDX $12,Y.
+
+Indirect: indicated by (). Only used by JMP. The operand is a memory address that contains the actual address to jump to. Example: JMP ($1234). Hardware bug: if the pointer is at a page boundary like $xxFF, the high byte wraps to $xx00.
+
+Indexed Indirect (X): indicated by (X). Adds X to a zero-page pointer, then reads the 16-bit effective address from that location. Example: LDA ($10,X).
+
+Indirect Indexed (Y): indicated by (Y). Reads a 16-bit pointer from zero-page, then adds Y to get the effective address. Example: LDA ($10),Y.
+
+Relative: REL. Only for branch instructions. Operand is an 8-bit signed offset from the next instruction. Can branch forward or backward up to 127 bytes.
+
+Accumulator: A. Instruction operates directly on the accumulator. Example: ASL A shifts the accumulator left.
+
+Implied: IMP. Instruction has no operand and operates on CPU status or registers. Example: CLC clears the carry flag.
+
+Instructions
+
+Load and Store
+
+LDA loads a value into A. Can use #, $, $X, $Y, 0x, 0xX, (X), or (Y).
+LDX loads into X. Can use #, $, 0x, 0xY.
+LDY loads into Y. Can use #, $, 0x, 0xX.
+STA stores A into memory. Can use $, $X, $Y, 0x, 0xX, (X), (Y).
+STX stores X. Can use $, 0x, 0xY.
+STY stores Y. Can use $, 0x, 0xX.
+
+Arithmetic and Logic
+
+ADC adds memory to A plus the carry. A = A + M + C. Affects flags N, V, Z, C.
+SBC subtracts memory from A minus (1 minus carry). A = A - M - (1-C).
+INC increments memory by 1.
+INX increments X by 1.
+INY increments Y by 1.
+DEC decrements memory by 1.
+DEX decrements X by 1.
+DEY decrements Y by 1.
+AND performs bitwise AND with A.
+ORA performs bitwise OR with A.
+EOR performs bitwise XOR with A.
+CMP compares A with memory and sets flags but does not store.
+CPX compares X with memory.
+CPY compares Y with memory.
+
+Quirks: ADC and SBC use the carry flag for multi-byte math. Overflow flag V is only affected by signed operations.
+
+Shifts and Rotates
+
+ASL arithmetic shift left. Can operate on A or memory.
+LSR logical shift right. Can operate on A or memory.
+ROL rotate left through carry. Can operate on A or memory.
+ROR rotate right through carry. Can operate on A or memory.
+
+Branches
+
+BCC branch if carry clear.
+BCS branch if carry set.
+BEQ branch if zero flag set (equal).
+BNE branch if zero flag clear (not equal).
+BPL branch if negative flag clear (positive).
+BMI branch if negative flag set (minus).
+BVC branch if overflow clear.
+BVS branch if overflow set.
+
+All branches use relative addressing.
+
+Jumps and Calls
+
+JMP jump to an address. Uses $ or () only.
+JSR jump to subroutine. Pushes return address onto stack.
+RTS return from subroutine. Pulls return address from stack.
+
+Stack Instructions
+
+PHA push A onto stack.
+PLA pull A from stack.
+PHP push processor status onto stack.
+PLP pull processor status from stack.
+TSX transfer SP to X.
+TXS transfer X to SP.
+
+Flags
+
+CLC clear carry.
+SEC set carry.
+CLD clear decimal.
+SED set decimal.
+CLI clear interrupt disable.
+SEI set interrupt disable.
+CLV clear overflow.
+
+No Operation
+
+NOP does nothing and takes one cycle.
+
+Hardware Bugs and Quirks
+
+JMP ($xxFF) wraps high byte incorrectly.
+Decimal mode may not work correctly on some 6502 chips.
+Absolute,X or Absolute,Y crossing a page boundary takes one extra cycle.
+Zero Page indexing wraps around 0xFF.
+
+Example Program
+
+LDX #$00
+LOOP: LDA MESSAGE,X
+BEQ END
+JSR PRINT_CHAR
+INX
+JMP LOOP
+END: BRK
+MESSAGE: .BYTE "HELLO",0
+
+Explanation: Load X with 0. Loop through MESSAGE. Load A with MESSAGE+X. If zero (end of string), branch to END. Otherwise, call PRINT_CHAR subroutine, increment X, and repeat. End stops with BRK. MESSAGE is the string "HELLO" terminated by 0.

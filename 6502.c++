@@ -10,18 +10,54 @@
 #include <algorithm>
 #include <fstream>
 #include <cstdint>
+#include <chrono>
+#include <conio.h>
+#include <thread>
+#include <functional>
 
+std::vector<uint8_t> readFileRaw(const std::string& path) {
+    std::ifstream file(path, std::ios::binary);
+    if (!file) {
+        throw std::runtime_error("Failed to open file: " + path);
+    }
+
+    file.seekg(0, std::ios::end);
+    std::streamsize size = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    std::vector<uint8_t> buffer(size);
+    if (!file.read(reinterpret_cast<char*>(buffer.data()), size)) {
+        throw std::runtime_error("Failed to read file: " + path);
+    }
+
+    return buffer;
+}
+
+void keyListener(std::function<void(char)> callback) {
+    while (true) {
+        if (_kbhit()) {
+            char key = _getch();   // read ASCII of pressed key
+            callback(key);         // call the callback immediately
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+}
 
 struct CPU {
 
     // Flags
 
     bool INDPageBug = false;
+    
     bool RTCompute = true;
     float timePerCycle_ms = 5.5;
+
     bool PrintAllowed = true;
     uint16_t PrintCharAddres = 0x0000;
     uint16_t PrintInvokeAddres = 0x0001;
+
+    bool InputAllowed = true;
+    uint16_t InputCharAddres = 0x0002;
 
     bool JMPUseIndirect = false;
 
@@ -47,8 +83,23 @@ struct CPU {
     void push(uint8_t value) { memory[0x0100 + SP] = value; SP--; }
     uint8_t pop() { SP++; return memory[0x0100 + SP]; }
 
+    void intruptNMI() {
+        PC = memory[0xFFFA] | (memory[0xFFFB]<<8);
+    }
+
+    void inputIntrupt(char c) {
+        memory[InputCharAddres] = c;
+        intruptNMI();
+    }
+
     void runFromReset() {
         PC = memory[0xFFFC] | (memory[0xFFFD]<<8);
+        
+        if (InputAllowed) {
+            std::thread listner(keyListener, [this](char c) { inputIntrupt(c); });
+            listner.detach();
+        }
+        
         while(1) {
             uint8_t opcode = memory[PC++];
             Instruction ins = instrutionMap[opcode];
@@ -61,6 +112,7 @@ struct CPU {
                 std::cout << (char)memory[PrintCharAddres];
             }
         }
+
     }
 
     uint8_t IMP() { fetched = 0; return 0; }
@@ -474,31 +526,38 @@ std::vector<uint8_t> loadProgram(const std::string& filePath) {
 }
 
 /*
-FFFC:FFFD - reset vector
+
+FFFB:FFFA - NMI
+FFFD:FFFC - reset vector
+FFFF:FFFE - IRQ / BRK 
+
 */
 
 int main() {
     CPU cpu;
-    cpu.PrintCharAddres = 0xFFF8;
-    cpu.PrintInvokeAddres = 0XFFF9;
+    cpu.PrintCharAddres    = 0xFFF8;
+    cpu.PrintInvokeAddres  = 0XFFF9;
+    cpu.InputCharAddres    = 0xFFF6;
 
+    std::vector<uint8_t> program = readFileRaw("E:\\vs code\\files\\6502cpp\\programs\\Hello, world\\memory.bin");
+
+/*
     std::vector<uint8_t> program = {
-        0xA9, 0x48, 0x20, 0x3F, 0x00, 0xA9, 0x65, 0x20,
-        0x3F, 0x00, 0xA9, 0x6C, 0x20, 0x3F, 0x00, 0xA9,
-        0x6C, 0x20, 0x3F, 0x00, 0xA9, 0x6F, 0x20, 0x3F,
-        0x00, 0xA9, 0x2C, 0x20, 0x3F, 0x00, 0xA9, 0x20,
-        0x20, 0x3F, 0x00, 0xA9, 0x77, 0x20, 0x3F, 0x00,
-        0xA9, 0x6F, 0x20, 0x3F, 0x00, 0xA9, 0x72, 0x20,
-        0x3F, 0x00, 0xA9, 0x6C, 0x20, 0x3F, 0x00, 0xA9,
-        0x64, 0x20, 0x3F, 0x00, 0x4C, 0x48, 0x00, 0x8D,
-        0xF8, 0xFF, 0xA9, 0x01, 0x8D, 0xF9, 0xFF, 0x60,
-        0x4C, 0x48, 0x00
+        0x4C, 0x16, 0x00, 0xEA, 0xAD, 0xF6, 0xFF, 0x20,
+        0x0D, 0x00, 0x4C, 0x16, 0x00, 0x8D, 0xF8, 0xFF,
+        0xA9, 0x01, 0x8D, 0xF9, 0xFF, 0x60, 0x4C, 0x16,
+        0x00
     };
 
     cpu.memory[0xFFFD] = 0x00;
-    cpu.memory[0xFFFC] = 0x00; 
+    cpu.memory[0xFFFC] = 0x00;
+    
+    cpu.memory[0xFFFA] = 0x03;
 
+
+*/
     std::copy(program.begin(), program.end(), cpu.memory);
+
 
     cpu.runFromReset();
 }
