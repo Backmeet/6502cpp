@@ -76,7 +76,7 @@ struct CPU {
     uint8_t memory[0x10000];
     uint16_t fetched;
     uint16_t addres;
-    Instruction instrutionMap[0xFF];
+    Instruction instrutionMap[0x100];
 
     bool getFlag(FLAGS f) { return (Status >> f) & 1; }
     void setFlag(FLAGS f, bool v) { if(v) Status |= (1 << f); else Status &= ~(1 << f); }
