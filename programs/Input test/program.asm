@@ -4,7 +4,7 @@ JMP AWAIT
 ON_CHAR:
     LDA $FFF6
     JSR PRINT_CHAR
-    JMP AWAIT
+    RTI
 
 ; print the char in reg A
 PRINT_CHAR:

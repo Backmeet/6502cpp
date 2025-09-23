@@ -83,13 +83,34 @@ struct CPU {
     void push(uint8_t value) { memory[0x0100 + SP] = value; SP--; }
     uint8_t pop() { SP++; return memory[0x0100 + SP]; }
 
-    void intruptNMI() {
-        PC = memory[0xFFFA] | (memory[0xFFFB]<<8);
+    void interruptNMI() {
+        // Push PC (high, then low)
+        push((PC >> 8) & 0xFF);
+        push(PC & 0xFF);
+
+        // Save a copy of Status with correct B and U before pushing
+        uint8_t saved = Status;
+
+        // Clear Break (B) for IRQ/NMI pushes
+        setFlag(B, 0);
+        // Ensure Unused (U) is always set
+        setFlag(U, 1);
+
+        push(Status);
+
+        // Restore original Status register after push
+        Status = saved;
+
+        // Set Interrupt Disable flag so no further IRQs
+        setFlag(I, 1);
+
+        // Load new PC from NMI vector
+        PC = memory[0xFFFA] | (memory[0xFFFB] << 8);
     }
 
     void inputIntrupt(char c) {
         memory[InputCharAddres] = c;
-        intruptNMI();
+        interruptNMI();
     }
 
     void runFromReset() {
