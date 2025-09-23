@@ -533,15 +533,27 @@ FFFF:FFFE - IRQ / BRK
 
 */
 
-int main() {
+int main(int argn, char* argv[]) {
     CPU cpu;
     cpu.PrintCharAddres    = 0xFFF8;
-    cpu.PrintInvokeAddres  = 0XFFF9;
+    cpu.PrintInvokeAddres  = 0xFFF9;
     cpu.InputCharAddres    = 0xFFF6;
 
-    std::vector<uint8_t> program = readFileRaw("E:\\vs code\\files\\6502cpp\\programs\\Input test\\memory.bin");
+    ///*
+    std::vector<uint8_t> program;
 
-/*
+    if (argn < 2) {
+        std::cout << "Incorrect Usage, use it like this: 6502 <path_to_memory_image>\n";
+        return 1;
+    } else {
+        program = readFileRaw(std::string(argv[1]));
+    }
+    //*/
+
+    //std::vector<uint8_t> program = readFileRaw("E:\\vs code\\files\\6502cpp\\programs\\Input test\\memory.bin");
+    //std::vector<uint8_t> program = readFileRaw("E:\\vs code\\files\\6502cpp\\programs\\Hello, world\\memory.bin");
+
+    /*
     std::vector<uint8_t> program = {
         0x4C, 0x16, 0x00, 0xEA, 0xAD, 0xF6, 0xFF, 0x20,
         0x0D, 0x00, 0x4C, 0x16, 0x00, 0x8D, 0xF8, 0xFF,
@@ -555,7 +567,9 @@ int main() {
     cpu.memory[0xFFFA] = 0x03;
 
 
-*/
+
+    */
+
     std::copy(program.begin(), program.end(), cpu.memory);
 
 
