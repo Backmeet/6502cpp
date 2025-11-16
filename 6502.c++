@@ -670,11 +670,7 @@ int main(int argn, char* argv[]) {
     cpu.InputCharAddres    = 0xFFF7; // the char inputed
     cpu.InputInvokedAddres = 0XFFF6; // when char inputed
 
-    std::vector<uint8_t> program = readFileRaw("E:\\vs code\\files\\6502cpp\\programs\\wozmon\\a.out");
-    std::copy(program.begin(), program.end(), cpu.memory);
-    cpu.runFromReset();
-
-/*
+    std::vector<uint8_t> program;
     bool debug = false;
 
     if (argn < 2) {
@@ -707,5 +703,4 @@ int main(int argn, char* argv[]) {
     } else {
         cpu.runFromReset();
     }
-*/
 }
