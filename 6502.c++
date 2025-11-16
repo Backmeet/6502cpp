@@ -14,6 +14,7 @@
 #include <conio.h>
 #include <thread>
 #include <functional>
+#include <iomanip>
 
 std::vector<uint8_t> readFileRaw(const std::string& path) {
     std::ifstream file(path, std::ios::binary);
@@ -58,6 +59,7 @@ struct CPU {
 
     bool InputAllowed = true;
     uint16_t InputCharAddres = 0x0002;
+    uint16_t InputInvokedAddres = 0x0003;
 
     bool JMPUseIndirect = false;
 
@@ -108,9 +110,38 @@ struct CPU {
         PC = memory[0xFFFA] | (memory[0xFFFB] << 8);
     }
 
+    void interruptIRQ() {
+        // Only service IRQ if I flag is clear
+        if (getFlag(I) == 0) {
+            // Push PC (high, then low)
+            push((PC >> 8) & 0xFF);
+            push(PC & 0xFF);
+
+            // Save a copy of Status with correct B and U before pushing
+            uint8_t saved = Status;
+
+            // Clear Break (B) for IRQ push
+            setFlag(B, 0);
+            // Ensure Unused (U) is always set
+            setFlag(U, 1);
+
+            push(Status);
+
+            // Restore original Status register after push
+            Status = saved;
+
+            // Set Interrupt Disable flag so no further IRQs
+            setFlag(I, 1);
+
+            // Load new PC from IRQ vector
+            PC = memory[0xFFFE] | (memory[0xFFFF] << 8);
+        }
+    }
+
     void inputIntrupt(char c) {
         memory[InputCharAddres] = c;
-        interruptNMI();
+        memory[InputInvokedAddres] = 1;
+        
     }
 
     void runFromReset() {
@@ -132,6 +163,33 @@ struct CPU {
                 memory[PrintInvokeAddres] = 0;
                 std::cout << (char)memory[PrintCharAddres];
             }
+        }
+
+    }
+
+    void runFromResetDEBUG() {
+        PC = memory[0xFFFC] | (memory[0xFFFD]<<8);
+        
+        if (InputAllowed) {
+            std::thread listner(keyListener, [this](char c) { inputIntrupt(c); });
+            listner.detach();
+        }
+        
+        while(1) {
+            uint8_t opcode = memory[PC++];
+            Instruction ins = instrutionMap[opcode];
+            (this->*ins.addrmode)();
+            (this->*ins.operate)();
+
+            printState();
+
+            Sleep(timePerCycle_ms * ins.cycles);
+            if (PrintAllowed and memory[PrintInvokeAddres]) {
+                memory[PrintInvokeAddres] = 0;
+                std::cout << (char)memory[PrintCharAddres];
+            }
+
+            system("cls");
         }
 
     }
@@ -179,7 +237,7 @@ struct CPU {
 
     uint8_t IZX() { uint8_t t = memory[PC++]; addres = memory[(uint8_t)(t+X)] | (memory[(uint8_t)(t+X+1)] << 8); fetched = memory[addres]; return 0; }
     uint8_t IZY() { uint8_t t = memory[PC++]; addres = (memory[t] | (memory[(t+1)&0xFF] << 8)) + Y; fetched = memory[addres]; return 0; }
-    uint8_t REL() { addres = PC++; return (int8_t)memory[addres]; }
+    uint8_t REL() { addres = PC++; fetched = (int8_t)memory[addres]; return 0;}
 
     uint8_t BRK() { PC++; push((PC>>8)&0xFF); push(PC&0xFF); setFlag(B,1); setFlag(I,1); push(Status); PC = memory[0xFFFE] | (memory[0xFFFF]<<8); return 0; }
     uint8_t ORA() { A |= fetched; setFlag(Z, A==0); setFlag(N, A&0x80); return 0; }
@@ -199,7 +257,11 @@ struct CPU {
     uint8_t INX() { X++; setFlag(Z,X==0); setFlag(N,X&0x80); return 0; }
     uint8_t INY() { Y++; setFlag(Z,Y==0); setFlag(N,Y&0x80); return 0; }
     uint8_t DEX() { X--; setFlag(Z,X==0); setFlag(N,X&0x80); return 0; }
-    uint8_t DEY() { Y--; setFlag(Z,Y==0); setFlag(N,Y&0x80); return 0; }
+    uint8_t DEY() { Y--;
+        setFlag(Z,Y==0);
+        setFlag(N,Y&0x80);
+        return 0; 
+    }
     uint8_t ASL() { uint16_t temp = fetched<<1; setFlag(C,temp&0x100); setFlag(Z,(temp&0xFF)==0); setFlag(N,temp&0x80); fetched = temp&0xFF; return 0; }
     uint8_t LSR() { setFlag(C,fetched&0x01); fetched >>=1; setFlag(Z,fetched==0); setFlag(N,0); return 0; }
     uint8_t ROL() { uint16_t temp = (fetched<<1)|getFlag(C); setFlag(C,temp&0x100); setFlag(Z,(temp&0xFF)==0); setFlag(N,temp&0x80); fetched = temp&0xFF; return 0; }
@@ -234,13 +296,13 @@ struct CPU {
     }
     uint8_t RTS() { uint16_t lo = pop(); uint16_t hi = pop(); PC = (hi<<8)|lo; PC++; return 0; }
     uint8_t BCC() { int8_t offset = fetched; if(!getFlag(C)) { PC += offset; return 1; } return 0; }
-    uint8_t BCS() { int8_t offset = fetched; if(getFlag(C)) { PC += offset; return 1; } return 0; }
-    uint8_t BEQ() { int8_t offset = fetched; if(getFlag(Z)) { PC += offset; return 1; } return 0; }
+    uint8_t BCS() { int8_t offset = fetched; if( getFlag(C)) { PC += offset; return 1; } return 0; }
+    uint8_t BEQ() { int8_t offset = fetched; if( getFlag(Z)) { PC += offset; return 1; } return 0; }
     uint8_t BNE() { int8_t offset = fetched; if(!getFlag(Z)) { PC += offset; return 1; } return 0; }
     uint8_t BPL() { int8_t offset = fetched; if(!getFlag(N)) { PC += offset; return 1; } return 0; }
-    uint8_t BMI() { int8_t offset = fetched; if(getFlag(N)) { PC += offset; return 1; } return 0; }
+    uint8_t BMI() { int8_t offset = fetched; if(getFlag(N))  { PC += offset; return 1; } return 0; }
     uint8_t BVC() { int8_t offset = fetched; if(!getFlag(V)) { PC += offset; return 1; } return 0; }
-    uint8_t BVS() { int8_t offset = fetched; if(getFlag(V)) { PC += offset; return 1; } return 0; }
+    uint8_t BVS() { int8_t offset = fetched; if( getFlag(V)) { PC += offset; return 1; } return 0; }
     uint8_t CLC() { setFlag(C,0); return 0; }
     uint8_t SEC() { setFlag(C,1); return 0; }
     uint8_t CLI() { setFlag(I,0); return 0; }
@@ -534,17 +596,64 @@ struct CPU {
         instrutionMap[0xFE] = { "INC", &CPU::INC, &CPU::ABX, 7 };
         instrutionMap[0xFF] = { "XXX", &CPU::XXX, &CPU::IMP, 7 };
     }
-};
 
-std::vector<uint8_t> loadProgram(const std::string& filePath) {
-    std::ifstream file(filePath, std::ios::binary);
-    if (!file) {
-        throw std::runtime_error("Failed to open file: " + filePath);
+    void printState() {
+        std::stringstream ss;
+
+        ss << "========================================\n";
+        ss << "CPU: 6502\n\n";
+
+        // Registers (2-digit hex)
+        ss << "A: " << std::setw(2) << std::setfill('0') << std::hex << std::uppercase << (int)A
+        << "   X: " << std::setw(2) << std::setfill('0') << (int)X
+        << "   Y: " << std::setw(2) << std::setfill('0') << (int)Y << "\n";
+
+        // PC and SP (4-digit for PC, 2-digit for SP)
+        ss << "PC: " << std::setw(4) << std::setfill('0') << PC
+        << " SP: " << std::setw(2) << std::setfill('0') << (int)SP << "\n\n";
+
+        // Current opcode and operand
+        uint8_t opcode = memory[PC];
+        Instruction& instr = instrutionMap[opcode];
+        ss << "[" << instr.name << "] ";
+
+        // Operand bytes (next 2 bytes max, 2-digit each)
+        ss << "[";
+        for(int i = 1; i <= 2; i++) {
+            if(PC + i < 0x10000) {
+                ss << std::setw(2) << std::setfill('0') << std::hex << std::uppercase << (int)memory[PC + i];
+                if(i < 2) ss << " ";
+            }
+        }
+        ss << "] ";
+
+        // Operand as 4-digit hex
+        ss << "{" << std::setw(4) << std::setfill('0') << std::hex << std::uppercase << addres << "}\n\n";
+
+        // Stack (show window around SP, 2-digit each)
+        ss << "STACK: [";
+        int start = std::max(0, (int)SP - 2);
+        int end = std::min(255, (int)SP + 3);
+        for(int i = start; i <= end; i++) {
+            if(i != start) ss << " | ";
+            ss << std::setw(2) << std::setfill('0') << std::hex << std::uppercase << (int)memory[0x0100 + i];
+        }
+        ss << "]\n\n";
+
+        // Vectors (4-digit each)
+        ss << "IRQ: " << std::setw(4) << std::setfill('0') << std::hex << std::uppercase
+        << (memory[0xFFFE] | (memory[0xFFFF] << 8)) << "\n";
+        ss << "RESET: " << std::setw(4) << std::setfill('0') 
+        << (memory[0xFFFC] | (memory[0xFFFD] << 8)) << "\n";
+        ss << "NMI: " << std::setw(4) << std::setfill('0') 
+        << (memory[0xFFFA] | (memory[0xFFFB] << 8)) << "\n";
+
+        ss << "========================================\n";
+
+        std::cout << ss.str();
     }
-    std::vector<uint8_t> program((std::istreambuf_iterator<char>(file)),
-                                 std::istreambuf_iterator<char>());
-    return program;
-}
+
+};
 
 /*
 
@@ -556,43 +665,47 @@ FFFF:FFFE - IRQ / BRK
 
 int main(int argn, char* argv[]) {
     CPU cpu;
-    cpu.PrintCharAddres    = 0xFFF8;
-    cpu.PrintInvokeAddres  = 0xFFF9;
-    cpu.InputCharAddres    = 0xFFF6;
+    cpu.PrintCharAddres    = 0xFFF8; // what to print
+    cpu.PrintInvokeAddres  = 0xFFF9; // invoke print
+    cpu.InputCharAddres    = 0xFFF7; // the char inputed
+    cpu.InputInvokedAddres = 0XFFF6; // when char inputed
 
-    ///*
-    std::vector<uint8_t> program;
+    std::vector<uint8_t> program = readFileRaw("E:\\vs code\\files\\6502cpp\\programs\\wozmon\\a.out");
+    std::copy(program.begin(), program.end(), cpu.memory);
+    cpu.runFromReset();
+
+/*
+    bool debug = false;
 
     if (argn < 2) {
-        std::cout << "Incorrect Usage, use it like this: 6502 <path_to_memory_image>\n";
+        std::cout << "Incorrect Usage, use it like this: 6502 <memory.bin> [--debug]\n";
         return 1;
-    } else {
-        program = readFileRaw(std::string(argv[1]));
     }
-    //*/
 
-    //std::vector<uint8_t> program = readFileRaw("E:\\vs code\\files\\6502cpp\\programs\\Input test\\memory.bin");
-    //std::vector<uint8_t> program = readFileRaw("E:\\vs code\\files\\6502cpp\\programs\\Hello, world\\memory.bin");
+    // Check for --debug flag
+    for (int i = 1; i < argn; i++) {
+        std::string arg = argv[i];
+        if (arg == "--debug") {
+            debug = true;
+        } else {
+            // Treat first non-flag argument as file path
+            if (program.empty()) {
+                program = readFileRaw(arg);
+            }
+        }
+    }
 
-    /*
-    std::vector<uint8_t> program = {
-        0x4C, 0x16, 0x00, 0xEA, 0xAD, 0xF6, 0xFF, 0x20,
-        0x0D, 0x00, 0x4C, 0x16, 0x00, 0x8D, 0xF8, 0xFF,
-        0xA9, 0x01, 0x8D, 0xF9, 0xFF, 0x60, 0x4C, 0x16,
-        0x00
-    };
-
-    cpu.memory[0xFFFD] = 0x00;
-    cpu.memory[0xFFFC] = 0x00;
-    
-    cpu.memory[0xFFFA] = 0x03;
-
-
-
-    */
+    if (program.empty()) {
+        std::cout << "No program file provided.\n";
+        return 1;
+    }
 
     std::copy(program.begin(), program.end(), cpu.memory);
 
-
-    cpu.runFromReset();
+    if (debug) {
+        cpu.runFromResetDEBUG();
+    } else {
+        cpu.runFromReset();
+    }
+*/
 }

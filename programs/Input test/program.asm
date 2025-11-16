@@ -1,21 +1,14 @@
-JMP AWAIT
-
-; attatched to NMI and emulators input mecanism
-ON_CHAR:
-    LDA $FFF6
-    JSR PRINT_CHAR
-    RTI
-
-; print the char in reg A
-PRINT_CHAR:
-    STA $FFF8
-    LDA #$01
+  .setcpu "65C02"
+loop:
+    LDA $FFF6              ; Check for input char. 
+    BEQ loop               ; while no char do nothing 
+    LDA $FFF7              ; get char
+    STA $FFF8              ; Output character.
+    LDA #1           
     STA $FFF9
-    RTS
+BEQ loop:
 
-AWAIT:
-JMP AWAIT
-
-.onStart AWAIT
-.onNMI ON_CHAR
-.onIRQ AWAIT
+.segment "VECTORS"
+    .word   loop         ; NMI vector
+    .word   loop         ; RESET vector
+    .word   loop         ; IRQ vector
