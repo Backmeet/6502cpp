@@ -14,7 +14,7 @@ void print(const char* str) {
     }
 }
 
-void main() {
+void _start() {
     print("Hello, World!\n");
     while (1);
 }
