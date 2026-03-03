@@ -1,0 +1,171 @@
+Modules list:
+-------------
+main.c.13012.0.o:
+    CODE              Offs=000000  Size=000053  Align=00001  Fill=0000
+    RODATA            Offs=000000  Size=00000F  Align=00001  Fill=0000
+crt0.S.13012.1.o:
+    STARTUP           Offs=000000  Size=000033  Align=00001  Fill=0000
+    ONCE              Offs=000000  Size=00001A  Align=00001  Fill=0000
+    INIT              Offs=000000  Size=00001C  Align=00001  Fill=0000
+E:\cc65\lib/c64.lib(addeqsp.o):
+    CODE              Offs=000053  Size=000011  Align=00001  Fill=0000
+E:\cc65\lib/c64.lib(callmain.o):
+    CODE              Offs=000064  Size=000017  Align=00001  Fill=0000
+    DATA              Offs=000000  Size=000004  Align=00001  Fill=0000
+E:\cc65\lib/c64.lib(condes.o):
+    CODE              Offs=00007B  Size=00000C  Align=00001  Fill=0000
+    DATA              Offs=000004  Size=000025  Align=00001  Fill=0000
+    ONCE              Offs=00001A  Size=00000C  Align=00001  Fill=0000
+E:\cc65\lib/c64.lib(exehdr.o):
+    EXEHDR            Offs=000000  Size=00000C  Align=00001  Fill=0000
+E:\cc65\lib/c64.lib(incsp1.o):
+    CODE              Offs=000087  Size=000007  Align=00001  Fill=0000
+E:\cc65\lib/c64.lib(incsp2.o):
+    CODE              Offs=00008E  Size=000016  Align=00001  Fill=0000
+E:\cc65\lib/c64.lib(kernal.o):
+E:\cc65\lib/c64.lib(ldaui.o):
+    CODE              Offs=0000A4  Size=000009  Align=00001  Fill=0000
+E:\cc65\lib/c64.lib(ldaxsp.o):
+    CODE              Offs=0000AD  Size=000009  Align=00001  Fill=0000
+E:\cc65\lib/c64.lib(loadaddr.o):
+    LOADADDR          Offs=000000  Size=000002  Align=00001  Fill=0000
+E:\cc65\lib/c64.lib(pusha.o):
+    CODE              Offs=0000B6  Size=000016  Align=00001  Fill=0000
+E:\cc65\lib/c64.lib(pushax.o):
+    CODE              Offs=0000CC  Size=00001A  Align=00001  Fill=0000
+E:\cc65\lib/c64.lib(zerobss.o):
+    CODE              Offs=0000E6  Size=000023  Align=00001  Fill=0000
+E:\cc65\lib/c64.lib(zeropage.o):
+    ZEROPAGE          Offs=000000  Size=00001A  Align=00001  Fill=0000
+
+
+Segment list:
+-------------
+Name                   Start     End    Size  Align
+----------------------------------------------------
+ZEROPAGE              000002  00001B  00001A  00001
+LOADADDR              0007FF  000800  000002  00001
+EXEHDR                000801  00080C  00000C  00001
+STARTUP               00080D  00083F  000033  00001
+CODE                  000840  000948  000109  00001
+RODATA                000949  000957  00000F  00001
+DATA                  000958  000980  000029  00001
+INIT                  000981  00099C  00001C  00001
+ONCE                  00099D  0009C2  000026  00001
+
+
+Exports list by name:
+---------------------
+BSOUT                     00FFD2 RLA    __BSS_RUN__               00099D RLA    
+__BSS_SIZE__              000000 REA    __CONSTRUCTOR_COUNT__     000000 REA    
+__CONSTRUCTOR_TABLE__     0009C3 RLA    __DESTRUCTOR_COUNT__      000000 REA    
+__DESTRUCTOR_TABLE__      000958 RLA    __EXEHDR__                000001 REA    
+__HEADER_LAST__           00080D RLA    __HIMEM__                 00FFFF REA    
+__LOADADDR__              000001 REA    __MAIN_SIZE__             00F7F2 REA    
+__MAIN_START__            00080D RLA    __ONCE_RUN__              00099D RLA    
+__STACKSIZE__             000800 REA    __STARTUP__               000001 REA    
+_main                     000885 RLA    addeqysp                  000895 RLA    
+c_sp                      000002 RLZ    callmain                  0008A4 RLA    
+donelib                   0008BB RLA    incsp1                    0008C7 RLA    
+incsp2                    0008D6 RLA    initlib                   0009B7 RLA    
+ldauidx                   0008E4 RLA    ldaxysp                   0008EF RLA    
+ptr1                      00000A RLZ    pusha                     0008FA RLA    
+pushax                    000910 RLA    zerobss                   000926 RLA    
+
+
+
+Exports list by value:
+----------------------
+__DESTRUCTOR_COUNT__      000000 REA    __CONSTRUCTOR_COUNT__     000000 REA    
+__BSS_SIZE__              000000 REA    __EXEHDR__                000001 REA    
+__STARTUP__               000001 REA    __LOADADDR__              000001 REA    
+c_sp                      000002 RLZ    ptr1                      00000A RLZ    
+__STACKSIZE__             000800 REA    __HEADER_LAST__           00080D RLA    
+__MAIN_START__            00080D RLA    _main                     000885 RLA    
+addeqysp                  000895 RLA    callmain                  0008A4 RLA    
+donelib                   0008BB RLA    incsp1                    0008C7 RLA    
+incsp2                    0008D6 RLA    ldauidx                   0008E4 RLA    
+ldaxysp                   0008EF RLA    pusha                     0008FA RLA    
+pushax                    000910 RLA    zerobss                   000926 RLA    
+__DESTRUCTOR_TABLE__      000958 RLA    __BSS_RUN__               00099D RLA    
+__ONCE_RUN__              00099D RLA    initlib                   0009B7 RLA    
+__CONSTRUCTOR_TABLE__     0009C3 RLA    __MAIN_SIZE__             00F7F2 REA    
+BSOUT                     00FFD2 RLA    __HIMEM__                 00FFFF REA    
+
+
+
+Imports list:
+-------------
+BSOUT (kernal.o):
+    crt0.S.13012.1.o          crt0.S:10
+__BSS_RUN__ ([linker generated]):
+    zerobss.o                 common/zerobss.s:8
+__BSS_SIZE__ ([linker generated]):
+    zerobss.o                 common/zerobss.s:8
+__CONSTRUCTOR_COUNT__ ([linker generated]):
+    condes.o                  runtime/condes.s:18
+__CONSTRUCTOR_TABLE__ ([linker generated]):
+    condes.o                  runtime/condes.s:18
+__DESTRUCTOR_COUNT__ ([linker generated]):
+    condes.o                  runtime/condes.s:19
+__DESTRUCTOR_TABLE__ ([linker generated]):
+    condes.o                  runtime/condes.s:19
+__EXEHDR__ (exehdr.o):
+    [linker generated]        linker.cfg:6
+__HEADER_LAST__ ([linker generated]):
+    [linker generated]        linker.cfg:14
+    [linker generated]        linker.cfg:14
+__HIMEM__ ([linker generated]):
+    [linker generated]        linker.cfg:15
+    [linker generated]        linker.cfg:14
+__LOADADDR__ (loadaddr.o):
+    [linker generated]        linker.cfg:5
+__MAIN_SIZE__ ([linker generated]):
+    crt0.S.13012.1.o          crt0.S:11
+__MAIN_START__ ([linker generated]):
+    crt0.S.13012.1.o          crt0.S:11
+__ONCE_RUN__ ([linker generated]):
+    [linker generated]        linker.cfg:15
+    [linker generated]        linker.cfg:15
+__STACKSIZE__ ([linker generated]):
+    [linker generated]        linker.cfg:15
+__STARTUP__ (crt0.S.13012.1.o):
+    main.c.13012.0.o          main.c.13012.0.s:13
+_main (main.c.13012.0.o):
+    callmain.o                runtime/callmain.s:11
+addeqysp (addeqsp.o):
+    main.c.13012.0.o          main.c.13012.0.s:97
+c_sp (zeropage.o):
+    pushax.o                  runtime/pushax.s:8
+    pusha.o                   runtime/pusha.s:8
+    ldaxsp.o                  runtime/ldaxsp.s:8
+    incsp2.o                  runtime/incsp2.s:8
+    incsp1.o                  runtime/incsp1.s:8
+    addeqsp.o                 runtime/addeqsp.s:8
+    crt0.S.13012.1.o          E:\cc65\asminc/zeropage.inc:11
+    main.c.13012.0.o          main.c.13012.0.s:10
+callmain (callmain.o):
+    crt0.S.13012.1.o          crt0.S:9
+donelib (condes.o):
+    crt0.S.13012.1.o          crt0.S:8
+incsp1 (incsp1.o):
+    main.c.13012.0.o          main.c.13012.0.s:97
+incsp2 (incsp2.o):
+    main.c.13012.0.o          main.c.13012.0.s:97
+initlib (condes.o):
+    crt0.S.13012.1.o          crt0.S:8
+ldauidx (ldaui.o):
+    main.c.13012.0.o          main.c.13012.0.s:97
+ldaxysp (ldaxsp.o):
+    main.c.13012.0.o          main.c.13012.0.s:97
+ptr1 (zeropage.o):
+    zerobss.o                 common/zerobss.s:9
+    ldaui.o                   runtime/ldaui.s:8
+pusha (pusha.o):
+    main.c.13012.0.o          main.c.13012.0.s:97
+pushax (pushax.o):
+    callmain.o                runtime/callmain.s:11
+    main.c.13012.0.o          main.c.13012.0.s:97
+zerobss (zerobss.o):
+    crt0.S.13012.1.o          crt0.S:9
+

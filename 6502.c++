@@ -194,49 +194,48 @@ struct CPU {
 
     }
 
+    inline void fetch_from_addres() { fetched = memory[addres]; }
+
     uint8_t IMP() { fetched = 0; return 0; }
     uint8_t ACC() { fetched = A; return 0; }
     uint8_t IMM() { addres = PC++; fetched = memory[addres]; return 0; }
-    uint8_t ZP0() { addres = memory[PC++]; fetched = memory[addres]; return 0; }
-    uint8_t ZPX() { addres = (memory[PC++] + X) & 0xFF; fetched = memory[addres]; return 0; }
-    uint8_t ZPY() { addres = (memory[PC++] + Y) & 0xFF; fetched = memory[addres]; return 0; }
-    uint8_t ABS() { 
-        uint8_t _1 = memory[PC++];
-        uint8_t _2 = memory[PC++];
-        uint16_t _3 = _2 << 8;
-        uint16_t _4 = _1 | _3;
-        addres = _4;
-        fetched = memory[addres]; 
-        return 0; 
-    }
-    uint8_t ABX() { addres = (memory[PC++] | (memory[PC++] << 8)) + X; fetched = memory[addres]; return 0; }
-    uint8_t ABY() { addres = (memory[PC++] | (memory[PC++] << 8)) + Y; fetched = memory[addres]; return 0; }
+    uint8_t ZP0()  { addres = memory[PC++]; fetch_from_addres(); return 0; }
+    uint8_t ZPX()  { addres = (uint8_t)(memory[PC++] + X); fetch_from_addres(); return 0; }
+    uint8_t ZPY()  { addres = (uint8_t)(memory[PC++] + Y); fetch_from_addres(); return 0; }
+    uint8_t ABS()  { uint8_t lo = memory[PC++]; uint8_t hi = memory[PC++]; addres = (uint16_t)lo | ((uint16_t)hi<<8); fetch_from_addres(); return 0; }
+    uint8_t ABX()  { uint8_t lo = memory[PC++]; uint8_t hi = memory[PC++]; addres = ((uint16_t)lo | ((uint16_t)hi<<8)) + X; fetch_from_addres(); return 0; }
+    uint8_t ABY()  { uint8_t lo = memory[PC++]; uint8_t hi = memory[PC++]; addres = ((uint16_t)lo | ((uint16_t)hi<<8)) + Y; fetch_from_addres(); return 0; }
     
-    // special as it needs to replicate that bug
     uint8_t IND() {
-        JMPUseIndirect = true;
-        uint16_t ptr_lo = memory[PC++];
-        uint16_t ptr_hi = memory[PC++];
-        uint16_t ptr = (ptr_hi << 8) | ptr_lo;
-
-        uint16_t addr_lo = memory[ptr];
-        uint16_t addr_hi;
-
-        if (INDPageBug && (ptr & 0xFF) == 0xFF) {
-            // emulate 6502 page boundary bug
-            addr_hi = memory[ptr & 0xFF00];
-        } else {
-            // normal behavior
-            addr_hi = memory[ptr + 1];
-        }
-
-        addres = (addr_hi << 8) | addr_lo;
+        uint8_t ptr_lo = memory[PC++];
+        uint8_t ptr_hi = memory[PC++];
+        uint16_t ptr = (uint16_t)ptr_lo | ((uint16_t)ptr_hi << 8);
+        uint8_t lo = memory[ptr];
+        uint8_t hi;
+        if (INDPageBug && ((ptr & 0x00FF) == 0x00FF)) hi = memory[ptr & 0xFF00];
+        else hi = memory[ptr + 1];
+        addres = (uint16_t)lo | ((uint16_t)hi << 8);
         return 0;
     }
 
+    uint8_t IZX() {
+        uint8_t t = memory[PC++];
+        uint8_t lo = memory[(uint8_t)(t + X)];
+        uint8_t hi = memory[(uint8_t)(t + X + 1)];
+        addres = (uint16_t)lo | ((uint16_t)hi << 8);
+        fetch_from_addres();
+        return 0;
+    }
 
-    uint8_t IZX() { uint8_t t = memory[PC++]; addres = memory[(uint8_t)(t+X)] | (memory[(uint8_t)(t+X+1)] << 8); fetched = memory[addres]; return 0; }
-    uint8_t IZY() { uint8_t t = memory[PC++]; addres = (memory[t] | (memory[(t+1)&0xFF] << 8)) + Y; fetched = memory[addres]; return 0; }
+    uint8_t IZY() {
+        uint8_t t = memory[PC++];
+        uint8_t lo = memory[(uint8_t)t];
+        uint8_t hi = memory[(uint8_t)(t + 1)];
+        uint16_t base = (uint16_t)lo | ((uint16_t)hi << 8);
+        addres = base + Y;
+        fetch_from_addres();
+        return 0;
+    }
     uint8_t REL() { addres = PC++; fetched = (int8_t)memory[addres]; return 0;}
 
     uint8_t BRK() { PC++; push((PC>>8)&0xFF); push(PC&0xFF); setFlag(B,1); setFlag(I,1); push(Status); PC = memory[0xFFFE] | (memory[0xFFFF]<<8); return 0; }
@@ -278,23 +277,22 @@ struct CPU {
     uint8_t PHP() { push(Status | (1<<B) | (1<<U)); return 0; }
     uint8_t PLA() { A = pop(); setFlag(Z,A==0); setFlag(N,A&0x80); return 0; }
     uint8_t PLP() { Status = pop(); setFlag(U,1); return 0; }
-    uint8_t JMP() { 
-        if (JMPUseIndirect) {
-            PC = memory[addres];
-            JMPUseIndirect = false;
-        } else {
-            PC = addres; 
-        } 
-        return 0; 
+    uint8_t JMP() { PC = addres; return 0; }
+    uint8_t JSR() {
+        uint16_t ret = PC - 1;
+        push((ret >> 8) & 0xFF);
+        push(ret & 0xFF);
+        PC = addres;
+        return 0;
     }
-    uint8_t JSR() { 
-        PC--; 
-        push((PC>>8)&0xFF); 
-        push(PC&0xFF); 
-        PC = addres; 
-        return 0; 
+
+    uint8_t RTS() {
+        uint8_t lo = pop();
+        uint8_t hi = pop();
+        PC = (uint16_t)hi << 8 | lo;
+        PC++;
+        return 0;
     }
-    uint8_t RTS() { uint16_t lo = pop(); uint16_t hi = pop(); PC = (hi<<8)|lo; PC++; return 0; }
     uint8_t BCC() { int8_t offset = fetched; if(!getFlag(C)) { PC += offset; return 1; } return 0; }
     uint8_t BCS() { int8_t offset = fetched; if( getFlag(C)) { PC += offset; return 1; } return 0; }
     uint8_t BEQ() { int8_t offset = fetched; if( getFlag(Z)) { PC += offset; return 1; } return 0; }
@@ -671,7 +669,7 @@ int main(int argn, char* argv[]) {
     cpu.InputInvokedAddres = 0XFFF6; // when char inputed
 
     std::vector<uint8_t> program;
-/*    bool debug = false;
+    bool debug = false;
 
     if (argn < 2) {
         std::cout << "Incorrect Usage, use it like this: 6502 <memory.bin> [--debug]\n";
@@ -703,8 +701,6 @@ int main(int argn, char* argv[]) {
     } else {
         cpu.runFromReset();
     }
-*/
-    program = readFileRaw("E:\\vs code\\files\\6502cpp\\programs\\wozmon\\a.out");
-    std::copy(program.begin(), program.end(), cpu.memory);
+
     cpu.runFromReset();
 }
